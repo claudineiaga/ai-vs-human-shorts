@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI vs Human Shorts — live player</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=block">
+<style>
+  :root { --bg: #16130f; --panel: #221e19; --ink: #f4ede1; --muted: #a89c8a; --accent: #62f5a0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: Inter, system-ui, sans-serif; }
+  body { display: flex; flex-direction: column; align-items: center; padding: 12px 16px; gap: 10px; }
+  canvas { height: calc(100vh - 150px); max-width: 100%; aspect-ratio: 9 / 16; border-radius: 14px; background: #000; box-shadow: 0 8px 30px rgba(0,0,0,.5); }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; width: min(560px, 100%); }
+  button, select { font: 600 14px Inter, sans-serif; color: var(--ink); background: var(--panel); border: 1px solid #3a342c; border-radius: 9px; padding: 8px 12px; cursor: pointer; }
+  button:hover, select:hover { border-color: var(--accent); }
+  input[type=range] { flex: 1; min-width: 160px; accent-color: var(--accent); }
+  .time { font: 600 13px ui-monospace, monospace; color: var(--muted); min-width: 92px; text-align: right; }
+  .note { font-size: 12px; color: var(--muted); text-align: center; max-width: 560px; }
+  code { color: var(--accent); }
+</style>
+</head><body>
+<canvas id="c" width="1080" height="1920"></canvas>
+
+<div class="bar">
+  <button id="play">Pause</button>
+  <input id="seek" type="range" min="0" max="1" step="0.0334" value="0">
+  <span class="time" id="time">0.0 / 0.0 s</span>
+</div>
+<div class="bar">
+  <select id="scene">
+    <option value="ai_agents">Ep. 1 — AI AGENTS AT WORK</option>
+    <option value="captcha">Ep. 2 — I'M NOT A ROBOT</option>
+  </select>
+  <select id="lang">
+    <option value="en">English</option>
+    <option value="pt">Português</option>
+  </select>
+  <button id="frame">Next frame</button>
+</div>
+<p class="note">Every frame is drawn live by plain JavaScript on a &lt;canvas&gt; — no video file, no images. Space = play/pause, ←/→ = step a frame.
+Sound is synthesized separately by <code>render.py</code> when you export the MP4.</p>
+
+<script>
+  const q = new URLSearchParams(location.search);
+  const sceneName = q.get('scene') || 'ai_agents';
+  window.LANG = q.get('lang') || 'en';
+  document.getElementById('scene').value = sceneName;
+  document.getElementById('lang').value = window.LANG;
+  for (const id of ['scene', 'lang']) document.getElementById(id).onchange = () => {
+    const s = document.getElementById('scene').value, l = document.getElementById('lang').value;
+    location.search = `?scene=${s}&lang=${l}`;
+  };
+
+  const tag = document.createElement('script');
+  tag.src = sceneName + '.js';
+  tag.onload = async () => {
+    try { await Promise.all([600, 700, 800, 900].map(w => document.fonts.load(`${w} 40px Inter`))); } catch (e) {}
+    const ctx = document.getElementById('c').getContext('2d');
+    const seek = document.getElementById('seek'), timeEl = document.getElementById('time'), btn = document.getElementById('play');
+    seek.max = TL.dur;
+    let t = 0, playing = true, last = performance.now();
+
+    const setPlaying = (p) => { playing = p; btn.textContent = p ? 'Pause' : 'Play'; last = performance.now(); };
+    const show = () => { draw(ctx, t); seek.value = t; timeEl.textContent = `${t.toFixed(1)} / ${TL.dur.toFixed(1)} s`; };
+    const step = (d) => { setPlaying(false); t = Math.min(TL.dur, Math.max(0, t + d)); show(); };
+
+    btn.onclick = () => setPlaying(!playing);
+    seek.oninput = () => { t = +seek.value; setPlaying(false); show(); };
+    document.getElementById('frame').onclick = () => step(1 / FPS);
+    addEventListener('keydown', (e) => {
+      if (e.code === 'Space') { e.preventDefault(); setPlaying(!playing); }
+      if (e.code === 'ArrowRight') step(1 / FPS);
+      if (e.code === 'ArrowLeft') step(-1 / FPS);
+    });
+
+    (function loop(now) {
+      if (playing) { t += (now - last) / 1000; if (t >= TL.dur) t = 0; show(); }
+      last = now;
+      requestAnimationFrame(loop);
+    })(performance.now());
+  };
+  document.body.appendChild(tag);
+</script>
+</body></html>

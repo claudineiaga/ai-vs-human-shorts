@@ -1,0 +1,21 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700;800;900&display=block">
+<style>html,body{margin:0;background:#000}</style></head>
+<body>
+<canvas id="c" width="1080" height="1920"></canvas>
+<script>
+  // Minimal page used by render.py. Loads the scene given in ?scene=name (default: ai_agents).
+  const sceneName = new URLSearchParams(location.search).get('scene') || 'ai_agents';
+  const tag = document.createElement('script');
+  tag.src = sceneName + '.js';
+  tag.onload = async () => {
+    // make sure the Inter font is ready before the first frame (falls back to sans-serif offline)
+    try { await Promise.all([600, 700, 800, 900].map(w => document.fonts.load(`${w} 40px Inter`))); } catch (e) {}
+    const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+    window.totalFrames = () => Math.round(TL.dur * FPS);
+    window.renderFrame = (i) => { draw(ctx, i / FPS); return cv.toDataURL('image/png'); };
+  };
+  document.body.appendChild(tag);
+</script>
+</body></html>
